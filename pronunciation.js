@@ -1,5 +1,5 @@
 // Melbourne suburb pronunciation dictionary — seed list.
-// Expand from real recordings during July 2026 AU trip (per Refinement 6).
+// Expand from real recordings of native speakers over time.
 module.exports = {
   'Reservoir':    'REZ-er-vwar',
   'Prahran':      'pra-RAN',
