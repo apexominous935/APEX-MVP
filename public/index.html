@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>APEX — Master Plumber Bot (MVP)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root {
+    --bg:#0b0f14; --panel:#131a22; --line:#22303d; --txt:#e8edf2; --muted:#7d8a99;
+    --accent:#42d392; --warn:#ffb45a; --bad:#ff6b6b; --bot:#1c2630; --you:#1f3a2c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 -apple-system,Segoe UI,Inter,Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+  .wrap{display:grid;grid-template-columns:1fr 380px;gap:14px;padding:14px;height:100vh}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0}
+  .panel h2{margin:0;padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
+  .phone{padding:14px;overflow-y:auto;flex:1}
+  .msg{padding:9px 12px;border-radius:10px;margin:6px 0;max-width:80%;white-space:pre-wrap;font-size:14px}
+  .msg.bot{background:var(--bot);border:1px solid var(--line)}
+  .msg.you{background:var(--you);border:1px solid #2a553d;margin-left:auto}
+  .meta{color:var(--muted);font-size:11px;margin:6px 0 -2px}
+  .composer{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+  .composer input{flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:#0d141b;color:var(--txt);font-size:14px}
+  .composer button,.bar button{padding:10px 14px;background:var(--accent);color:#03110a;border:0;border-radius:8px;font-weight:600;cursor:pointer}
+  .bar{display:flex;gap:8px;padding:10px;border-bottom:1px solid var(--line)}
+  .bar button.alt{background:#22303d;color:var(--txt)}
+  .bar button.bad{background:var(--bad);color:#2b0606}
+  .roi{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 14px}
+  .stat{background:#0d141b;border:1px solid var(--line);border-radius:8px;padding:10px}
+  .stat .v{font-size:22px;font-weight:700;color:var(--accent)}
+  .stat .v.warn{color:var(--warn)}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .booking{padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px}
+  .booking .h{font-weight:600;color:var(--accent)}
+  .booking .d{color:var(--muted);font-size:12px}
+  .empty{padding:30px 14px;text-align:center;color:var(--muted);font-size:13px}
+  .tag{display:inline-block;padding:2px 7px;border-radius:4px;background:#22303d;color:var(--muted);font-size:11px;margin-left:6px}
+  .tag.emerg{background:#3a1414;color:var(--bad)}
+  .tag.urg{background:#3a2814;color:var(--warn)}
+  .scroll{overflow-y:auto;flex:1}
+  h1{margin:0;padding:14px;font-size:15px;border-bottom:1px solid var(--line)}
+  h1 small{color:var(--muted);font-weight:400}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>📞 Live call — Master Plumbers <small>· AI receptionist demo</small></h1>
+    <div class="bar">
+      <button id="newcall">New call</button>
+      <button class="alt" id="missed">Log missed call (no bot)</button>
+      <button class="bad" id="wipe">Wipe data</button>
+    </div>
+    <div class="phone" id="phone"></div>
+    <form class="composer" id="composer">
+      <input id="input" autocomplete="off" placeholder='Type what the caller says (e.g. "I\'ve got a burst pipe in Reservoir")' />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>ROI snapshot</h2>
+    <div class="roi" id="roi"></div>
+    <h2>Bookings</h2>
+    <div class="scroll" id="bookings"></div>
+  </div>
+</div>
+
+<script>
+const sessionId = 'demo-' + Math.random().toString(36).slice(2, 8);
+const phone = document.getElementById('phone');
+const input = document.getElementById('input');
+const composer = document.getElementById('composer');
+
+function bubble(role, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + (role === 'bot' ? 'bot' : 'you');
+  d.textContent = text;
+  phone.appendChild(d);
+  phone.scrollTop = phone.scrollHeight;
+}
+
+async function send(text) {
+  if (text) bubble('you', text);
+  const r = await fetch('/chat', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ sessionId, text })
+  });
+  const data = await r.json();
+  bubble('bot', data.reply);
+  if (data.transferToHuman) bubble('bot', '[Transferring to a human…]');
+  refreshState();
+}
+
+composer.addEventListener('submit', e => {
+  e.preventDefault();
+  const t = input.value.trim();
+  if (!t) return;
+  input.value = '';
+  send(t);
+});
+
+document.getElementById('newcall').onclick = async () => {
+  await fetch('/reset', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ sessionId })});
+  phone.innerHTML = '';
+  send(''); // triggers greet
+};
+
+document.getElementById('missed').onclick = async () => {
+  await fetch('/missed', { method: 'POST' });
+  refreshState();
+};
+
+document.getElementById('wipe').onclick = async () => {
+  if (!confirm('Wipe all bookings + missed calls?')) return;
+  await fetch('/wipe', { method: 'POST' });
+  refreshState();
+};
+
+async function refreshState() {
+  const s = await (await fetch('/state')).json();
+  const r = s.roi;
+  document.getElementById('roi').innerHTML = `
+    <div class="stat"><div class="v">${r.jobsBooked}</div><div class="l">Jobs booked by AI</div></div>
+    <div class="stat"><div class="v">$${r.capturedRevenue.toLocaleString()}</div><div class="l">Est. captured revenue</div></div>
+    <div class="stat"><div class="v warn">${r.missedWithoutBot}</div><div class="l">Missed (no bot)</div></div>
+    <div class="stat"><div class="v">${r.callsHandled}</div><div class="l">Total calls</div></div>
+  `;
+  const b = document.getElementById('bookings');
+  if (!s.bookings.length) {
+    b.innerHTML = '<div class="empty">No bookings yet. Start a call →</div>';
+    return;
+  }
+  b.innerHTML = s.bookings.slice().reverse().map(x => {
+    const tag = /Emergency/i.test(x.tier) ? '<span class="tag emerg">EMERG</span>'
+              : /Urgent/i.test(x.tier)    ? '<span class="tag urg">URG</span>'
+              : '<span class="tag">STD</span>';
+    return `<div class="booking">
+      <div class="h">${x.name} ${tag}</div>
+      <div>${x.issue}</div>
+      <div class="d">${x.when} · ${x.suburb} · ${x.phone} · ~$${x.estRevenue}</div>
+    </div>`;
+  }).join('');
+}
+
+// Kick off
+send('');
+refreshState();
+</script>
+</body>
+</html>
