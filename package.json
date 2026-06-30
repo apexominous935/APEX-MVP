@@ -1,0 +1,13 @@
+{
+  "name": "apex-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "APEX AI voice receptionist prototype — deterministic booking/triage agent for trades businesses.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
