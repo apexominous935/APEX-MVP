@@ -7,11 +7,20 @@ so the logic is deterministic and testable before wiring in a real voice layer.
 
 ## Run
 
+Local demo only:
+
     cd apex_mvp
     node server.js
     # open http://localhost:5174
 
 No npm install. No API keys required for the local demo. Zero dependencies.
+
+### Run with a public URL (for wiring to Vapi)
+
+Windows: **double-click `start.bat`**. It opens the server and a public Cloudflare
+tunnel in two windows; the tunnel window prints a `https://….trycloudflare.com`
+URL. Paste that URL + `/vapi` into Vapi's Custom LLM field. The URL changes each
+run. Full steps in `VAPI_SETUP.md`.
 
 ## What it does
 
